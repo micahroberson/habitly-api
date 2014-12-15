@@ -8,9 +8,6 @@ import (
   goauth2 "github.com/golang/oauth2"
   "github.com/martini-contrib/oauth2"
   "github.com/martini-contrib/sessions"
-  "github.com/micahroberson/habitly-api/config"
-  "github.com/micahroberson/habitly-api/controllers"
-  "github.com/micahroberson/habitly-api/db"
   "github.com/micahroberson/habitly-api/models"
 )
 
