@@ -1,7 +1,7 @@
 package main
 
 import (
-  "github.com/micahroberson/habitly-api/server/server"
+  "github.com/micahroberson/habitly-api/server"
 )
 
 func main() {

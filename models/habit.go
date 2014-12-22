@@ -2,9 +2,8 @@ package models
 
 import (
   "github.com/codegangsta/martini-contrib/binding"
-  "gopkg.in/mgo.v2/bson"
+  "labix.org/v2/mgo/bson"
   "net/http"
-  "sort"
   "time"
 )
 
