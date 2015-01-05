@@ -5,6 +5,7 @@ import (
   "github.com/codegangsta/martini-contrib/cors"
   "github.com/codegangsta/martini-contrib/render"
   "github.com/go-martini/martini"
+  // "github.com/martini-contrib/auth"
   "github.com/micahroberson/habitly-api/controllers"
   "github.com/micahroberson/habitly-api/db"
   "github.com/micahroberson/habitly-api/models"
@@ -25,10 +26,23 @@ func NewServer(databaseName string) *martini.ClassicMartini {
     AllowCredentials: true,
   }))
 
-  // Setup event routes
-  m.Get(`/habits`, controllers.GetAllHabits)
-  m.Get(`/habits/:id`, controllers.GetHabit)
-  m.Post(`/habits`, binding.Json(models.Habit{}), binding.ErrorHandler, controllers.AddHabit)
+  var LoginRequired martini.Handler = func() martini.Handler {
+    return func(s sessions.Session, c martini.Context, w http.ResponseWriter, r *http.Request) {
+      
+    }
+  }
+
+  m.Group("/api/v1", func(r martini.Router) {
+    r.Get("/habits", controllers.GetAllHabits)
+    r.Get("/habits/:id", controllers.GetHabit)
+    r.Post("/habits", binding.Json(models.Habit{}), binding.ErrorHandler, controllers.AddHabit)
+  })
+
+  m.Group("/api/v1", func(r martini.Router) {
+    r.Post("/users", binding.Json(models.User{}), binding.ErrorHandler, controllers.RegisterUser)
+    r.Post("/login", binding.Json(models.User{}), binding.ErrorHandler, controllers.LoginUser)
+    // r.Delete("/logout", controllers.UserLogout)
+  })
 
   // Setup comment routes
   // m.Get(`/habits/:habit_id/comments`, controllers.GetAllComments)

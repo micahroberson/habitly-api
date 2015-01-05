@@ -2,7 +2,6 @@ package db
 
 import (
   "log"
-
   "github.com/go-martini/martini"
   "labix.org/v2/mgo"
 )
@@ -18,6 +17,16 @@ func DB(databaseName string) martini.Handler {
   return func(c martini.Context) {
     s := session.Clone()
     c.Map(s.DB(databaseName))
+
+    index := mgo.Index{
+      Key: []string{"email"},
+      Unique: true,
+      DropDups: true,
+      Background: false,
+      Sparse: true,
+    }
+    s.DB(databaseName).C("users").EnsureIndex(index)
+
     defer s.Close()
     c.Next()
   }
