@@ -1,33 +1,73 @@
 package models
 
 import (
-  "github.com/codegangsta/martini-contrib/binding"
-  "labix.org/v2/mgo/bson"
-  "net/http"
-  "time"
+  "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
 )
 
 type Habit struct {
   Id          bson.ObjectId `json:"id,omitempty" bson:"_id,omitempty"`
   Name        string        `json:"name" bson:"name"`
-  CreatedBy   bson.ObjectId `json:"created_by" bson:"created_by"`
-  CreatedAt   time.Time     `json:"created_at" bson:"created_at"`
+  AccountId   bson.ObjectId `json:"account_id" bson:"account_id"`
+  CreatedAt   int64         `json:"created_at" bson:"created_at"`
+  UpdatedAt   int64         `json:"updated_at" bson:"updated_at"`
 }
 
-// This method implements binding.Validator and is executed by the binding.Validate middleware
-// Should only be called when creating a new event via a POST request
-func (event Habit) Validate(errors *binding.Errors, req *http.Request) {
+type HabitResource struct {
+  Payload Habit `json:"payload"`
+}
 
-  if event.Name == "" {
-    errors.Fields["name"] = "This field is required"
-  } else if len(event.Name) < 5 {
-    errors.Fields["name"] = "Too short, minimum 5 characters"
-  } else if len(event.Name) > 50 {
-    errors.Fields["name"] = "Too long, maximum 50 characters"
+type HabitCollection struct {
+  Payload []Habit `json:"payload"`
+}
+
+type HabitRepo struct {
+  Coll *mgo.Collection
+}
+
+func (r *HabitRepo) All(q bson.M) (HabitCollection, error) {
+  result := HabitCollection{[]Habit{}}
+  err := r.Coll.Find(q).Sort("created_at").All(&result.Payload)
+  if err != nil {
+    return result, err
+  }
+  return result, nil
+}
+
+func (r *HabitRepo) Find(q bson.M) (HabitResource, error) {
+  result := HabitResource{}
+  err := r.Coll.Find(q).One(&result.Payload)
+  if err != nil {
+    return result, err
+  }
+  return result, nil
+}
+
+func (r *HabitRepo) Create(habit *Habit) error {
+  id := bson.NewObjectId()
+  _, err := r.Coll.UpsertId(id, habit)
+  if err != nil {
+    return err
+  }
+  habit.Id = id
+
+  return nil
+}
+
+func (r *HabitRepo) Update(q bson.M, update bson.M) error {
+  err := r.Coll.Update(q, update)
+  if err != nil {
+    return err
   }
 
-  if len(errors.Fields) > 0 {
-    errors.Overall["ValidationError"] = "Form validation failed"
+  return nil
+}
+
+func (r *HabitRepo) Delete(q bson.M) error {
+  err := r.Coll.Remove(q)
+  if err != nil {
+    return err
   }
 
+  return nil
 }

@@ -1,11 +1,8 @@
 package models
 
 import (
-  // "github.com/micahroberson/habitly-api/lib"
-  "github.com/dchest/uniuri"
-  "labix.org/v2/mgo"
-  "labix.org/v2/mgo/bson"
-  "time"
+  "gopkg.in/mgo.v2"
+  "gopkg.in/mgo.v2/bson"
 )
 
 type User struct {
@@ -13,31 +10,47 @@ type User struct {
   Name             string        `json:"name" bson:"name"`
   Password         []byte        `json:"password" bson:"password"`
   Email            string        `json:"email" bson:"email"`
-  CreatedAt        time.Time     `json:"created_at" bson:"created_at"`
-  LastLoggedInAt   time.Time     `json:"last_logged_in_at" bson:"last_logged_in_at"`
-  AuthToken        string        `json:"auth_token" bson:"auth_token"`
+  CreatedAt        int64         `json:"created_at" bson:"created_at"`
+  LastSignedInAt   int64         `json:"last_signed_in_at" bson:"last_signed_in_at"`
 }
 
-// type UserLogin struct {
-//   Email            string        `json:"email" binding:"required"`
-//   Password         string        `json:"password" binding:"required"`
-// }
+type UserResource struct {
+  Payload User `json:"payload"`
+}
 
-func (u *User) Login(db *mgo.Database) {
-  u.LastLoggedInAt = time.Now()
-  u.AuthToken = uniuri.NewLen(22)
+type UserCollection struct {
+  Payload []User `json:"payload"`
+}
 
-  err:= db.C("users").Update(bson.M{"_id": u.Id}, u)
+type UserRepo struct {
+  Coll *mgo.Collection
+}
+
+func (r *UserRepo) Find(q bson.M) (UserResource, error) {
+  result := UserResource{}
+  err := r.Coll.Find(q).One(&result.Payload)
   if err != nil {
-    panic(err)
+    return result, err
   }
-  // u.authenticated = true
+  return result, nil
 }
 
-func (u *User) Logout() {
-  // u.authenticated = false
+func (r *UserRepo) Create(user *User) error {
+  id := bson.NewObjectId()
+  _, err := r.Coll.UpsertId(id, user)
+  if err != nil {
+    return err
+  }
+  user.Id = id
+
+  return nil
 }
 
-// func NewAuth() Authenticator {
-//   return &User{Email: ""}
-// }
+func (r *UserRepo) Update(q bson.M, update bson.M) error {
+  err := r.Coll.Update(q, update)
+  if err != nil {
+    return err
+  }
+
+  return nil
+}
