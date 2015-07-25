@@ -11,6 +11,7 @@ type Habit struct {
   AccountId   bson.ObjectId `json:"account_id" bson:"account_id"`
   CreatedAt   int64         `json:"created_at" bson:"created_at"`
   UpdatedAt   int64         `json:"updated_at" bson:"updated_at"`
+  Datapoints  []DatapointAggregation   `json:"datapoints"`
 }
 
 type HabitResource struct {

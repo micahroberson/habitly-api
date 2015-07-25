@@ -9,7 +9,7 @@ import (
   "github.com/julienschmidt/httprouter"
   "github.com/micahroberson/habitly-api/lib"
   "github.com/micahroberson/habitly-api/models"
-  // "time"
+  "time"
 )
 
 func GetAllHabits(c *lib.AppContext, w http.ResponseWriter, r *http.Request) {
@@ -33,10 +33,11 @@ func GetHabit(c *lib.AppContext, w http.ResponseWriter, r *http.Request) {
   fmt.Println("GetHabit")
 
   params := context.Get(r, "params").(httprouter.Params)
+  habitId := bson.ObjectIdHex(params.ByName("id"))
 
   q := bson.M{
     "account_id": c.GetCurrentUserId(),
-    "_id":        bson.ObjectIdHex(params.ByName("id")),
+    "_id":        habitId,
   }
 
   repo := models.HabitRepo{c.MongoSession.C("habits")}
@@ -45,6 +46,54 @@ func GetHabit(c *lib.AppContext, w http.ResponseWriter, r *http.Request) {
   if err != nil {
     panic(err)
   }
+
+  // TODO: Use current month for past 30 day aggregation
+  timestampHourStart, err := time.Parse(time.RFC3339Nano, "2015-07-01T00:00:00Z")
+  if err != nil {
+    panic(err)
+  }
+
+  pipeline := []bson.M{
+    bson.M{
+      "$match": bson.M{
+        "habit_id": habitId,
+        "timestamp_hour": bson.M{"$gte": timestampHourStart},
+      },
+    },
+    bson.M{"$unwind": "$values"},
+    bson.M{"$unwind": "$values.values"},
+    bson.M{
+      "$match": bson.M{
+        "values.values.value": bson.M{"$gt": 0},
+      },
+    },
+    bson.M{
+      "$project": bson.M{
+        "value": "$values.values.value",
+        "habit_id": 1,
+        "timestamp_hour": 1,
+      },
+    },
+    bson.M{
+      "$group": bson.M{
+        "_id": bson.M{
+          "day": bson.M{"$dayOfMonth": "$timestamp_hour"},
+          "month": bson.M{"$month": "$timestamp_hour"},
+          "year": bson.M{"$year": "$timestamp_hour"},
+        },
+        "total": bson.M{"$sum": "$value"},
+      },
+    },
+  }
+
+  datapointsRepo := models.DatapointRepo{c.MongoSession.C("datapoints")}
+  datapoints, err := datapointsRepo.Aggregate(pipeline)
+
+  if err != nil {
+    panic(err)
+  }
+
+  habit.Payload.Datapoints = datapoints
 
   json.NewEncoder(w).Encode(habit)
 }

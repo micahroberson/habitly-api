@@ -10,6 +10,7 @@ import (
   "os"
   "reflect"
   "time"
+  "github.com/go-errors/errors"
   "github.com/gorilla/context"
   // "github.com/gorilla/mux"
   "gopkg.in/mgo.v2"
@@ -130,7 +131,7 @@ func recoverHandler(next http.Handler) http.Handler {
   fn := func(w http.ResponseWriter, r *http.Request) {
     defer func() {
       if err := recover(); err != nil {
-        log.Printf("panic: %+v", err)
+        fmt.Println(errors.Wrap(err, 2).ErrorStack())
         WriteError(w, ErrInternalServer)
       }
     }()
@@ -241,6 +242,9 @@ func main() {
   defer mgoSession.Close()
   mgoSession.SetMode(mgo.Monotonic, true)
 
+  // mgo.SetDebug(true)
+  // mgo.SetLogger(log.New(os.Stdout, "MGO: ", log.Lshortfile))
+
   appContext := &lib.AppContext{
     MongoSession: mgoSession.DB(""),
     VerifyKey: verifyKey,
@@ -251,32 +255,14 @@ func main() {
   router := router.NewRouter()
   router.Post("/api/users/sign-in", commonHandlers.Append(contentTypeHandler, bodyHandler(models.UserResource{})).ThenFunc(appHandler(appContext, handlers.AuthenticateUser)))
   router.Post("/api/users/register", commonHandlers.Append(contentTypeHandler, bodyHandler(models.UserResource{})).ThenFunc(appHandler(appContext, handlers.RegisterUser)))
+
   router.Get("/api/habits", commonHandlers.Append(authenticationHandler(appContext)).ThenFunc(appHandler(appContext, handlers.GetAllHabits)))
   router.Get("/api/habits/:id", commonHandlers.Append(authenticationHandler(appContext)).ThenFunc(appHandler(appContext, handlers.GetHabit)))
   router.Post("/api/habits", commonHandlers.Append(contentTypeHandler, authenticationHandler(appContext), bodyHandler(models.HabitResource{})).ThenFunc(appHandler(appContext, handlers.CreateHabit)))
   router.Put("/api/habits/:id", commonHandlers.Append(contentTypeHandler, authenticationHandler(appContext), bodyHandler(models.HabitResource{})).ThenFunc(appHandler(appContext, handlers.UpdateHabit)))
   router.Delete("/api/habits/:id", commonHandlers.Append(authenticationHandler(appContext)).ThenFunc(appHandler(appContext, handlers.DeleteHabit)))
 
-
-  // router.
-  //   Methods("POST").
-  //   Path("/api/users/sign-in").
-  //   Name("Authenticate").
-  //   Handler(appHandler{false, context, handlers.Authenticate})
-
-  // router.
-  //   Methods("POST").
-  //   Path("/api/users/register").
-  //   Name("RegisterUser").
-  //   Handler(appHandler{false, context, handlers.RegisterUser})
-
-  // router.
-  //   Methods("GET").
-  //   Path("/api/habits").
-  //   Name("HabitsIndex").
-  //   Handler(appHandler{true, context, handlers.GetAllHabits})
-
-  // http.Handle("/", router)
+  router.Post("/api/habits/:habit_id/datapoints", commonHandlers.Append(contentTypeHandler, authenticationHandler(appContext), bodyHandler(models.SecDatapointResource{})).ThenFunc(appHandler(appContext, handlers.CreateDatapoint)))
 
   fmt.Printf("habitly-api server listening on port: %s...\n\n", listenPort)
   http.ListenAndServe(fmt.Sprintf(":%s", listenPort), router)
